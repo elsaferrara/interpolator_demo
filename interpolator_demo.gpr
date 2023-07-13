@@ -12,6 +12,7 @@ project Interpolator_demo is
 
    package Compiler is
 	   for Switches ("Ada") use ("-gnat2022");
+	   for Local_Configuration_Pragmas use "interpolator_demo.adc";
    end Compiler;
 
    package Linker is

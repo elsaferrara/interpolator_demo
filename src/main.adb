@@ -8,9 +8,10 @@ with HAL; use HAL;
 with Unchecked_Conversion;
 with RP.Clock;
 with System.Storage_Elements; use System.Storage_Elements;
+with Interpolator_Simulator;
 
 
-procedure Main is
+procedure Main with SPARK_Mode is
    Scale_min : constant := 0.0078125;
    Scale_max : constant := 1.0;
    Skew_min : constant := -0.5;
@@ -22,35 +23,37 @@ procedure Main is
    D_yscale : Float;
    Skew : Float;
    D_skew : Float;
-    Bool : Boolean := False; 
    
    Interp0 : RP.Interpolator.INTERP_Peripheral renames RP.Device.INTERP_0;
    
    type Color_Array is array (UInt8 range 1 .. 4) of Bitmap_Color;
    Black : Bitmap_Color := (0, 0, 0);
-   Grey : Bitmap_Color := (20, 40, 20);
+   --  Grey : Bitmap_Color := (20, 40, 20);
    RP_Leaf : Bitmap_Color := (107,192,72);
    RP_Berry : Bitmap_Color := (196,25,73);
    Colors : Color_Array := (Black, RP_Leaf, RP_Berry, Blue);
    
-   type Logo_array is array (Natural range <>) of UInt8;
-   Demo_logo : Logo_array :=
-     (4,4,4,1,1,1,1,4,1,1,1,1,4,4,4,4,
-      4,4,1,2,2,2,1,1,1,2,2,2,1,4,4,4,
-      4,4,1,2,2,1,2,1,2,1,2,2,1,4,4,4,
-      4,4,4,1,2,2,1,1,1,2,2,1,4,4,4,4,
-      4,4,4,4,1,1,1,3,1,1,1,4,4,4,4,4,
-      4,4,4,1,3,1,3,3,3,1,3,1,4,4,4,4,
-      4,4,1,3,1,1,1,1,1,1,1,3,1,4,4,4,
-      4,1,1,3,1,3,3,1,3,3,1,3,1,1,4,4,
-      4,1,3,1,3,3,3,1,3,3,3,1,3,1,4,4,
-      4,1,3,1,1,1,1,3,1,1,1,1,3,1,4,4,
-      4,1,1,1,3,1,3,3,3,1,3,1,1,1,4,4,
-      4,4,1,3,3,1,3,3,3,1,3,3,1,4,4,4,
-      4,4,1,1,3,1,1,1,1,1,3,1,1,4,4,4,
-      4,4,4,1,1,1,3,3,3,1,1,1,4,4,4,4,
-      4,4,4,4,4,1,1,1,1,1,4,4,4,4,4,4,
-      4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4);
+   type Logo_array is array (UInt32 range <>) of UInt8;
+   --  Demo_logo : Logo_array :=
+   --    (4,4,4,1,1,1,1,4,1,1,1,1,4,4,4,4,
+   --     4,4,1,2,2,2,1,1,1,2,2,2,1,4,4,4,
+   --     4,4,1,2,2,1,2,1,2,1,2,2,1,4,4,4,
+   --     4,4,4,1,2,2,1,1,1,2,2,1,4,4,4,4,
+   --     4,4,4,4,1,1,1,3,1,1,1,4,4,4,4,4,
+   --     4,4,4,1,3,1,3,3,3,1,3,1,4,4,4,4,
+   --     4,4,1,3,1,1,1,1,1,1,1,3,1,4,4,4,
+   --     4,1,1,3,1,3,3,1,3,3,1,3,1,1,4,4,
+   --     4,1,3,1,3,3,3,1,3,3,3,1,3,1,4,4,
+   --     4,1,3,1,1,1,1,3,1,1,1,1,3,1,4,4,
+   --     4,1,1,1,3,1,3,3,3,1,3,1,1,1,4,4,
+   --     4,4,1,3,3,1,3,3,3,1,3,3,1,4,4,4,
+   --     4,4,1,1,3,1,1,1,1,1,3,1,1,4,4,4,
+   --     4,4,4,1,1,1,3,3,3,1,1,1,4,4,4,4,
+   --     4,4,4,4,4,1,1,1,1,1,4,4,4,4,4,4,
+   --     4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4);
+      Demo_logo : Logo_array :=
+     (4,1,
+      2,3);
    
    function Int_To_UInt is new Unchecked_Conversion (Integer_32,UInt32);
    
@@ -62,11 +65,9 @@ procedure Main is
       D_yscale := 0.8;
       Skew := 0.0;
       D_skew := Skew_step;
-      Bool:= False;
    end Initialize;
    
-   procedure Texture_Mapping_Setup (Texture : Logo_array; 
-                                    UV_Fractional_Bits : HAL.UInt5;
+   procedure Texture_Mapping_Setup (UV_Fractional_Bits : HAL.UInt5;
                                     Texture_Width_Bits : HAL.UInt5;
                                    Texture_Height_Bits : HAL.UInt5)
    is
@@ -84,16 +85,23 @@ procedure Main is
                            MASK_MSB => Texture_Width_Bits + Texture_Height_Bits - 1,
                            others => <>);
       
-      Interp0.BASE (2) := UInt32 (To_Integer (Texture'Address));
-
+      Interp0.BASE (2) := UInt32 (0);
    end Texture_Mapping_Setup;
    
-   procedure Texture_Fill_Line (Init_Index: Integer;
+   procedure Texture_Fill_Line (Init_Index: Natural;
                                 U : UInt32;
                                 V : UInt32;
                                 DU : UInt32;
                                 DV : UInt32;
-                                Count : Integer) is
+                                Count : Natural)
+     with Pre => Init_Index < Nbr_Of_Pixels - Count + 1;
+   
+   procedure Texture_Fill_Line (Init_Index: Natural;
+                                U : UInt32;
+                                V : UInt32;
+                                DU : UInt32;
+                                DV : UInt32;
+                                Count : Natural) is
       
    begin
       Interp0.ACCUM (0) := U;
@@ -103,17 +111,17 @@ procedure Main is
            
       for I in Init_Index .. Init_Index + Count - 1 loop
          declare
-           Color_Index : UInt8 with Address => To_Address ( Integer_Address (Interp0.POP (2)));
+           Color_Index : UInt32 := Interp0.POP (2);
          begin 
             
-            Set_Color (Colors ( Color_Index));
+            Set_Color (Colors ( Demo_Logo (Color_Index)));
             Pico.Pimoroni.Display.Set_Pixel (I);
             
          end;
       end loop;
    end Texture_Fill_Line;
    
-   procedure Fill_Buffer (W : Integer;
+   procedure Fill_Buffer (W : Natural;
                           H : Integer;
                           Xscale : Float;
                           Yscale : Float;
@@ -123,12 +131,12 @@ procedure Main is
       S : Integer_32;
    begin
 
-      Texture_Mapping_Setup (Demo_logo, 16, 4, 4);
+      Texture_Mapping_Setup (16, 1, 1);
       DX := UInt32 (65536.0 * Xscale);
       DY := UInt32 (65536.0 * Yscale);
       S := Integer_32 (65536.0 * Skew);
-      for L in 0 .. H - 1 loop
-         Texture_Fill_Line (L * Screen_Width, 0, UInt32(L) * DY, DX, Int_To_UInt (S), W);
+      for L in Natural range 0 .. H - 1 loop
+         Texture_Fill_Line (L * W, 0, UInt32(L) * DY, DX, Int_To_UInt (S), W);
       end loop;
    end Fill_Buffer;
    
@@ -168,33 +176,32 @@ procedure Main is
       end if;
    end Step_Yscale;
    
+   Cur_Bool : Boolean;
+   
 begin
    RP.Clock.Initialize (Pico.XOSC_Frequency);
    RP.Device.Timer.Enable;
    Pico.Pimoroni.Display.Initialize;
    Initialize;
-   
    loop
-
       Fill_Buffer (Pico.Pimoroni.Display.Screen_Width,
                    Pico.Pimoroni.Display.Screen_Height,
                    Xscale,
                    Yscale,
                    Skew);      
-      if Bool then
-      Set_Color (Red);
-      Pico.Pimoroni.Display.Fill_Rect (((10, 10), 100, 100));
-      end if;
       
       Pico.Pimoroni.Display.Update (Clear => True);
       Pico.Pimoroni.Display.Buttons.Poll_Buttons;
-      if Pico.Pimoroni.Display.Buttons.Pressed(A) then
+      Pico.Pimoroni.Display.Buttons.Pressed(A, Cur_Bool);
+      if Cur_Bool then
          Step_Xscale;
       end if;
-      if Pico.Pimoroni.Display.Buttons.Pressed(B) then
+      Pico.Pimoroni.Display.Buttons.Pressed(B, Cur_Bool);
+      if Cur_Bool then
          Step_Yscale;
       end if;
-      if Pico.Pimoroni.Display.Buttons.Pressed(X) then
+      Pico.Pimoroni.Display.Buttons.Pressed(X, Cur_Bool);
+      if Cur_Bool then
          Step_Skew;
       end if;
       if Pico.Pimoroni.Display.Buttons.Just_Pressed(Y) then
