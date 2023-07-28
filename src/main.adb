@@ -1,4 +1,4 @@
-with RP.Interpolator; 
+with RP.Interpolator;
 with RP.Device;
 with Pico.Pimoroni.Display; use Pico.Pimoroni.Display;
 with Pico.Pimoroni.Display.Buttons; use Pico.Pimoroni.Display.Buttons;
@@ -8,10 +8,12 @@ with HAL; use HAL;
 with Unchecked_Conversion;
 with RP.Clock;
 with System.Storage_Elements; use System.Storage_Elements;
-with Interpolator_Simulator;
+with Interpolator_Simulator; use Interpolator_Simulator;
+with Interpolator; use Interpolator;
 
 
-procedure Main with SPARK_Mode is
+
+procedure Main is
    Scale_min : constant := 0.0078125;
    Scale_max : constant := 1.0;
    Skew_min : constant := -0.5;
@@ -24,6 +26,7 @@ procedure Main with SPARK_Mode is
    Skew : Float;
    D_skew : Float;
    
+   --  Interp0 : Interpolator_Simulator.Interpolator;
    Interp0 : RP.Interpolator.INTERP_Peripheral renames RP.Device.INTERP_0;
    
    type Color_Array is array (UInt8 range 1 .. 4) of Bitmap_Color;
@@ -34,26 +37,24 @@ procedure Main with SPARK_Mode is
    Colors : Color_Array := (Black, RP_Leaf, RP_Berry, Blue);
    
    type Logo_array is array (UInt32 range <>) of UInt8;
-   --  Demo_logo : Logo_array :=
-   --    (4,4,4,1,1,1,1,4,1,1,1,1,4,4,4,4,
-   --     4,4,1,2,2,2,1,1,1,2,2,2,1,4,4,4,
-   --     4,4,1,2,2,1,2,1,2,1,2,2,1,4,4,4,
-   --     4,4,4,1,2,2,1,1,1,2,2,1,4,4,4,4,
-   --     4,4,4,4,1,1,1,3,1,1,1,4,4,4,4,4,
-   --     4,4,4,1,3,1,3,3,3,1,3,1,4,4,4,4,
-   --     4,4,1,3,1,1,1,1,1,1,1,3,1,4,4,4,
-   --     4,1,1,3,1,3,3,1,3,3,1,3,1,1,4,4,
-   --     4,1,3,1,3,3,3,1,3,3,3,1,3,1,4,4,
-   --     4,1,3,1,1,1,1,3,1,1,1,1,3,1,4,4,
-   --     4,1,1,1,3,1,3,3,3,1,3,1,1,1,4,4,
-   --     4,4,1,3,3,1,3,3,3,1,3,3,1,4,4,4,
-   --     4,4,1,1,3,1,1,1,1,1,3,1,1,4,4,4,
-   --     4,4,4,1,1,1,3,3,3,1,1,1,4,4,4,4,
-   --     4,4,4,4,4,1,1,1,1,1,4,4,4,4,4,4,
-   --     4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4);
-      Demo_logo : Logo_array :=
-     (4,1,
-      2,3);
+   Demo_logo : Logo_array :=
+     (4,4,4,1,1,1,1,4,1,1,1,1,4,4,4,4,
+      4,4,1,2,2,2,1,1,1,2,2,2,1,4,4,4,
+      4,4,1,2,2,1,2,1,2,1,2,2,1,4,4,4,
+      4,4,4,1,2,2,1,1,1,2,2,1,4,4,4,4,
+      4,4,4,4,1,1,1,3,1,1,1,4,4,4,4,4,
+      4,4,4,1,3,1,3,3,3,1,3,1,4,4,4,4,
+      4,4,1,3,1,1,1,1,1,1,1,3,1,4,4,4,
+      4,1,1,3,1,3,3,1,3,3,1,3,1,1,4,4,
+      4,1,3,1,3,3,3,1,3,3,3,1,3,1,4,4,
+      4,1,3,1,1,1,1,3,1,1,1,1,3,1,4,4,
+      4,1,1,1,3,1,3,3,3,1,3,1,1,1,4,4,
+      4,4,1,3,3,1,3,3,3,1,3,3,1,4,4,4,
+      4,4,1,1,3,1,1,1,1,1,3,1,1,4,4,4,
+      4,4,4,1,1,1,3,3,3,1,1,1,4,4,4,4,
+      4,4,4,4,4,1,1,1,1,1,4,4,4,4,4,4,
+      4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4);
+
    
    function Int_To_UInt is new Unchecked_Conversion (Integer_32,UInt32);
    
@@ -66,27 +67,6 @@ procedure Main with SPARK_Mode is
       Skew := 0.0;
       D_skew := Skew_step;
    end Initialize;
-   
-   procedure Texture_Mapping_Setup (UV_Fractional_Bits : HAL.UInt5;
-                                    Texture_Width_Bits : HAL.UInt5;
-                                   Texture_Height_Bits : HAL.UInt5)
-   is
-   begin
-      Interp0.CTRL := (others => <>);
-      Interp0.CTRL (0) := (ADD_RAW => True,
-                           SHIFT => UV_Fractional_Bits,
-                           MASK_LSB => 0,
-                           MASK_MSB => Texture_Width_Bits - 1,
-                           others => <>);
-      
-      Interp0.CTRL (1) := (ADD_RAW => True,
-                           SHIFT => UV_Fractional_Bits - Texture_Width_Bits,
-                           MASK_LSB => Texture_Width_Bits,
-                           MASK_MSB => Texture_Width_Bits + Texture_Height_Bits - 1,
-                           others => <>);
-      
-      Interp0.BASE (2) := UInt32 (0);
-   end Texture_Mapping_Setup;
    
    procedure Texture_Fill_Line (Init_Index: Natural;
                                 U : UInt32;
@@ -104,19 +84,19 @@ procedure Main with SPARK_Mode is
                                 Count : Natural) is
       
    begin
-      Interp0.ACCUM (0) := U;
-      Interp0.BASE (0) := DU;
-      Interp0.ACCUM (1) := V;
-      Interp0.BASE (1) := DV;
+      Set_Accum (Interp0, 0, U);
+      Set_Base (Interp0, 0, DU);
+      Set_Accum (Interp0, 1, V);
+      Set_Base (Interp0, 1, DV);
            
       for I in Init_Index .. Init_Index + Count - 1 loop
          declare
-           Color_Index : UInt32 := Interp0.POP (2);
-         begin 
             
+           Color_Index : UInt32;
+         begin 
+            Pop (Interp0, 2, Color_Index);
             Set_Color (Colors ( Demo_Logo (Color_Index)));
             Pico.Pimoroni.Display.Set_Pixel (I);
-            
          end;
       end loop;
    end Texture_Fill_Line;
@@ -130,8 +110,25 @@ procedure Main with SPARK_Mode is
       DY : UInt32;
       S : Integer_32;
    begin
-
-      Texture_Mapping_Setup (16, 1, 1);
+      Set_Ctrl_Lane(Interp0,
+                                           Num_Lane => 0,
+                                           SHIFT => 16,
+                                           MASK_LSB => 0,
+                                           MASK_MSB => 3,
+                                           SIGNED => False,
+                                           CROSS_INPUT => False,
+                                           CROSS_RESULT => False,
+                                           ADD_RAW => True);
+      Set_Ctrl_Lane(Interp0,
+                                           Num_Lane => 1,
+                                           SHIFT => 12,
+                                           MASK_LSB => 4,
+                                           MASK_MSB => 7,
+                                           SIGNED => False,
+                                           CROSS_INPUT => False,
+                                           CROSS_RESULT => False,
+                                           ADD_RAW => True);
+      Set_Base (Interp0, 2, UInt32 (0));
       DX := UInt32 (65536.0 * Xscale);
       DY := UInt32 (65536.0 * Yscale);
       S := Integer_32 (65536.0 * Skew);

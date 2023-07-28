@@ -1,8 +1,8 @@
 with Interfaces; use Interfaces;
 package body Interpolator_Simulator with SPARK_Mode is
-   
-
-   procedure Lane_0_Config (Interp : in out Interpolator;
+ 
+   procedure Set_Ctrl_Lane (Interp : in out Interpolator;
+                          Num_Lane : Ctrl_Lane;
                             SHIFT          : UInt5;
                             MASK_LSB       : UInt5;
                             MASK_MSB       : UInt5;
@@ -12,7 +12,7 @@ package body Interpolator_Simulator with SPARK_Mode is
                             ADD_RAW        : Boolean)
    is
    begin
-      Interp.CTRL (0) := (SHIFT => SHIFT,
+      Interp.CTRL (Num_Lane) := (SHIFT => SHIFT,
                           MASK_LSB => MASK_LSB,
                           MASK_MSB => MASK_MSB,
                           SIGNED => SIGNED,
@@ -20,100 +20,40 @@ package body Interpolator_Simulator with SPARK_Mode is
                           CROSS_RESULT => CROSS_RESULT,
                           ADD_RAW => ADD_RAW);
       Update (Interp);
-   end Lane_0_Config;
+   end Set_Ctrl_Lane;
    
-   procedure Lane_1_Config (Interp : in out Interpolator;
-                            SHIFT          : UInt5;
-                            MASK_LSB       : UInt5;
-                            MASK_MSB       : UInt5;
-                            SIGNED         : Boolean;
-                            CROSS_INPUT    : Boolean;
-                            CROSS_RESULT   : Boolean;
-                            ADD_RAW        : Boolean)
+   procedure Set_Base (Interp : in out Interpolator;
+                       Num_Lane : Lane;
+                       Value : HAL.UInt32)
    is
    begin
-      Interp.CTRL (1) := (SHIFT => SHIFT,
-                          MASK_LSB => MASK_LSB,
-                          MASK_MSB => MASK_MSB,
-                          SIGNED => SIGNED,
-                          CROSS_INPUT => CROSS_INPUT,
-                          CROSS_RESULT => CROSS_RESULT,
-                          ADD_RAW => ADD_RAW);
+      Interp.BASE (Num_Lane) := Value;
       Update (Interp);
-   end Lane_1_Config;
+   end Set_Base;
    
-   procedure Set_Base_0 (Interp : in out Interpolator;
-                         Value : HAL.UInt32)
-   is
-   begin
-      Interp.BASE (0) := Value;
-      Update (Interp);
-   end Set_Base_0;
-      
-   procedure Set_Base_1 (Interp : in out Interpolator;
-                         Value : HAL.UInt32)
-   is
-   begin
-      Interp.BASE (1) := Value;
-      Update (Interp);
-   end Set_Base_1;
-   
-   procedure Set_Base_2 (Interp : in out Interpolator;
-                         Value : HAL.UInt32)
-   is
-   begin
-      Interp.BASE (2) := Value;
-      Update (Interp);
-   end Set_Base_2;
-   
-   procedure Set_Accum_0 (Interp : in out Interpolator;
+   procedure Set_Accum (Interp : in out Interpolator;
+                          Num_Lane : Ctrl_Lane;
                           Value : HAL.UInt32)
    is
    begin
-      Interp.ACCUM (0) := Value;
+      Interp.ACCUM (Num_Lane) := Value;
       Update (Interp);
-   end Set_Accum_0;
+   end Set_Accum;
    
-   procedure Set_Accum_1 (Interp : in out Interpolator;
-                          Value : HAL.UInt32)
-   is
+   function Peek (Interp : Interpolator;
+                   Num_Lane : Lane) 
+                    return UInt32 is
    begin
-      Interp.ACCUM (1) := Value;
-      Update (Interp);
-   end Set_Accum_1;
+      return Interp.PEEK (Num_Lane);
+   end Peek;
    
-   function Peek_0 (Interp : Interpolator) return UInt32 is
+   procedure Pop (Interp : in out Interpolator;
+                    Num_Lane : Lane;
+                    Result : out UInt32) is
    begin
-      return Interp.PEEK (0);
-   end Peek_0;
-   
-   function Peek_1 (Interp : Interpolator) return UInt32 is
-   begin
-      return Interp.PEEK (1);
-   end Peek_1;
-   
-   function Peek_2 (Interp : Interpolator) return UInt32 is
-   begin
-      return Interp.PEEK (2);
-   end Peek_2;
-   
-   procedure Pop_0 (Interp : in out Interpolator; Result : out UInt32) is
-   begin
-      Result := Peek_0 (Interp);
+      Result := Peek (Interp, Num_Lane);
       Next_State (Interp);
-   end Pop_0;
-   
-   procedure Pop_1 (Interp : in out Interpolator; Result : out UInt32) is
-   begin
-      Result := Peek_1 (Interp);
-      Next_State (Interp);
-   end Pop_1;
-   
-   procedure Pop_2 (Interp : in out Interpolator; Result : out UInt32) is
-   begin
-      Result := Peek_2 (Interp);
-      Next_State (Interp);
-   end Pop_2;
+   end Pop;
    
    procedure Update (Interp : in out Interpolator) is 
       Accum0 : UInt32 := (if Interp.CTRL (0).CROSS_INPUT then Interp.ACCUM (1) else Interp.ACCUM (0));
@@ -145,17 +85,17 @@ package body Interpolator_Simulator with SPARK_Mode is
       Accum1 : UInt32;
    begin
       if Interp.CTRL (0).CROSS_RESULT then
-         Accum0 := Peek_1 (Interp);
+         Accum0 := Peek (Interp, 1);
       else 
-         Accum0 := Peek_0 (Interp);
+         Accum0 := Peek (Interp, 0);
       end if;
       if Interp.CTRL (1).CROSS_RESULT then
-         Accum1 := Peek_0 (Interp);
+         Accum1 := Peek (Interp, 0);
       else 
-         Accum1 := Peek_1 (Interp);
+         Accum1 := Peek (Interp, 1);
       end if;
-      Set_Accum_0 (Interp, Accum0);
-      Set_Accum_1 (Interp, Accum1);
+      Set_Accum (Interp, 0, Accum0);
+      Set_Accum (Interp, 1, Accum1);
    end;
    
 end Interpolator_Simulator;
