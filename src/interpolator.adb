@@ -1,7 +1,8 @@
-package body Interpolator with SPARK_Mode is
+package body Interpolator is
    
-   procedure Set_Ctrl_Lane (Interp : in out INTERP_Peripheral;
-                          Num_Lane : Ctrl_Lane;
+   Interp_Periph : RP.Interpolator.INTERP_Peripheral renames RP.Device.INTERP_0;
+   
+   procedure Set_Ctrl_Lane (Num_Lane : Ctrl_Lane;
                             SHIFT          : UInt5;
                             MASK_LSB       : UInt5;
                             MASK_MSB       : UInt5;
@@ -11,7 +12,7 @@ package body Interpolator with SPARK_Mode is
                             ADD_RAW        : Boolean)
    is
    begin
-      Interp.CTRL (Num_Lane) := (SHIFT => SHIFT,
+      Interp_Periph.CTRL (Num_Lane) := (SHIFT => SHIFT,
                           MASK_LSB => MASK_LSB,
                           MASK_MSB => MASK_MSB,
                           SIGNED => SIGNED,
@@ -21,34 +22,30 @@ package body Interpolator with SPARK_Mode is
                                 others => <>);
    end Set_Ctrl_Lane;
    
-   procedure Set_Base (Interp : in out INTERP_Peripheral;
-                       Num_Lane : Lane;
+   procedure Set_Base (Num_Lane : Lane;
                        Value : HAL.UInt32)
    is
    begin
-      Interp.BASE (Num_Lane) := Value;
+      Interp_Periph.BASE (Num_Lane) := Value;
    end Set_Base;
    
-   procedure Set_Accum (Interp : in out INTERP_Peripheral;
-                          Num_Lane : Ctrl_Lane;
+   procedure Set_Accum (Num_Lane : Ctrl_Lane;
                           Value : HAL.UInt32)
    is
    begin
-      Interp.ACCUM (Num_Lane) := Value;
+      Interp_Periph.ACCUM (Num_Lane) := Value;
    end Set_Accum;
    
-   function Peek (Interp : INTERP_Peripheral;
-                   Num_Lane : Lane) 
+   function Peek (Num_Lane : Lane) 
                     return UInt32 is
    begin
-      return Interp.PEEK (Num_Lane);
+      return Interp_Periph.PEEK (Num_Lane);
    end Peek;
    
-   procedure Pop (Interp : in out INTERP_Peripheral;
-                    Num_Lane : Lane;
+   procedure Pop (Num_Lane : Lane;
                     Result : out UInt32) is
    begin
-      Result := Interp.POP (Num_Lane);
+      Result := Interp_Periph.POP (Num_Lane);
    end Pop;
 
 end Interpolator;

@@ -8,10 +8,8 @@ with HAL; use HAL;
 with Unchecked_Conversion;
 with RP.Clock;
 with System.Storage_Elements; use System.Storage_Elements;
-with Interpolator_Simulator; use Interpolator_Simulator;
+--  with Interpolator_Simulator; use Interpolator_Simulator;
 with Interpolator; use Interpolator;
-
-
 
 procedure Main is
    Scale_min : constant := 0.0078125;
@@ -25,9 +23,6 @@ procedure Main is
    D_yscale : Float;
    Skew : Float;
    D_skew : Float;
-   
-   --  Interp0 : Interpolator_Simulator.Interpolator;
-   Interp0 : RP.Interpolator.INTERP_Peripheral renames RP.Device.INTERP_0;
    
    type Color_Array is array (UInt8 range 1 .. 4) of Bitmap_Color;
    Black : Bitmap_Color := (0, 0, 0);
@@ -84,17 +79,17 @@ procedure Main is
                                 Count : Natural) is
       
    begin
-      Set_Accum (Interp0, 0, U);
-      Set_Base (Interp0, 0, DU);
-      Set_Accum (Interp0, 1, V);
-      Set_Base (Interp0, 1, DV);
+      Set_Accum (0, U);
+      Set_Base (0, DU);
+      Set_Accum (1, V);
+      Set_Base (1, DV);
            
       for I in Init_Index .. Init_Index + Count - 1 loop
          declare
             
            Color_Index : UInt32;
          begin 
-            Pop (Interp0, 2, Color_Index);
+            Pop (2, Color_Index);
             Set_Color (Colors ( Demo_Logo (Color_Index)));
             Pico.Pimoroni.Display.Set_Pixel (I);
          end;
@@ -110,8 +105,7 @@ procedure Main is
       DY : UInt32;
       S : Integer_32;
    begin
-      Set_Ctrl_Lane(Interp0,
-                                           Num_Lane => 0,
+      Set_Ctrl_Lane( Num_Lane => 0,
                                            SHIFT => 16,
                                            MASK_LSB => 0,
                                            MASK_MSB => 3,
@@ -119,8 +113,7 @@ procedure Main is
                                            CROSS_INPUT => False,
                                            CROSS_RESULT => False,
                                            ADD_RAW => True);
-      Set_Ctrl_Lane(Interp0,
-                                           Num_Lane => 1,
+      Set_Ctrl_Lane(Num_Lane => 1,
                                            SHIFT => 12,
                                            MASK_LSB => 4,
                                            MASK_MSB => 7,
@@ -128,7 +121,7 @@ procedure Main is
                                            CROSS_INPUT => False,
                                            CROSS_RESULT => False,
                                            ADD_RAW => True);
-      Set_Base (Interp0, 2, UInt32 (0));
+      Set_Base ( 2, UInt32 (0));
       DX := UInt32 (65536.0 * Xscale);
       DY := UInt32 (65536.0 * Yscale);
       S := Integer_32 (65536.0 * Skew);
